@@ -7,16 +7,42 @@ description: Generate and save images through the local Codex CLI hidden `codex 
 
 ## Quick Start
 
-Use the bundled script for prompt-to-image and reference-image work:
+Codex CLI version requirement:
+
+```text
+Use Codex CLI 0.125.0 for this skill.
+```
+
+Install location:
+
+```text
+Windows:
+  C:\Users\<you>\.codex\skills\codex-image-generation
+
+macOS/Linux:
+  ~/.codex/skills/codex-image-generation
+```
+
+Use the bundled Windows PowerShell entry on Windows:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\generate_codex_image.ps1" -Prompt "<image prompt>" -OutputDir "<workspace>\generated-images"
 ```
 
-For image-to-image or reference-image generation, pass one or more `-ReferenceImage` values:
+Use the bundled Node.js entry on macOS/Linux:
+
+```bash
+node "<skill-dir>/scripts/generate_codex_image.mjs" --prompt "<image prompt>" --output-dir "<workspace>/generated-images"
+```
+
+For image-to-image or reference-image generation, pass one or more reference-image values:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\generate_codex_image.ps1" -Prompt "<edit prompt>" -ReferenceImage "<path-or-url-or-file-id>" -Action auto -OutputDir "<workspace>\generated-images"
+```
+
+```bash
+node "<skill-dir>/scripts/generate_codex_image.mjs" --prompt "<edit prompt>" --reference-image "<path-or-url-or-file-id>" --action auto --output-dir "<workspace>/generated-images"
 ```
 
 The script:
@@ -28,27 +54,39 @@ The script:
 - Supports text-only generation and reference-image generation through `input_image` content.
 - Sends the payload with `codex responses`.
 - Saves only the PNG/JPEG/WEBP result by default.
-- Keeps the payload and JSONL response only when `-DebugArtifacts` is passed, or when a failed run leaves artifacts for inspection.
+- Keeps the payload and JSONL response only when the debug-artifact flag is passed, or when a failed run leaves artifacts for inspection.
+- Relies on the hidden `codex responses` CLI path, which is known to work with Codex CLI `0.125.0`.
 
 ## Workflow
 
-1. Locate this skill directory and run `scripts/generate_codex_image.ps1`.
+1. Locate this skill directory and choose the entry by platform: `scripts/generate_codex_image.ps1` on Windows, `scripts/generate_codex_image.mjs` on macOS/Linux.
 2. Prefer passing `-Prompt` non-interactively when the user already gave a prompt.
-3. For normal text-to-image, omit `-ReferenceImage`.
-4. For reference-image generation, pass one or more `-ReferenceImage` arguments. Local paths are encoded as base64 data URLs; HTTP(S) URLs, `data:image/...;base64,...` values, and `file-*` IDs are passed through.
-5. Use an output directory inside the current workspace unless the user asks for another location.
-6. After generation, report the saved image path. Use `-DebugArtifacts` when the user needs payload/response files for debugging.
+3. On macOS/Linux, pass the same values with GNU-style flags such as `--prompt` and `--reference-image`.
+4. For normal text-to-image, omit the reference-image argument.
+5. For reference-image generation, pass one or more `-ReferenceImage` or `--reference-image` arguments. Local paths are encoded as base64 data URLs; HTTP(S) URLs, `data:image/...;base64,...` values, and `file-*` IDs are passed through.
+6. Use an output directory inside the current workspace unless the user asks for another location.
+7. After generation, report the saved image path. Use the debug-artifact flag when the user needs payload/response files for debugging.
 
-Example:
+Windows example:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\10296\.codex\skills\codex-image-generation\scripts\generate_codex_image.ps1" -Prompt "A cute cat astronaut, sticker style" -OutputDir "D:\coding\subagent\image2\generated-images"
 ```
 
-Reference image example:
+macOS/Linux example:
+
+```bash
+node "$HOME/.codex/skills/codex-image-generation/scripts/generate_codex_image.mjs" --prompt "A cute cat astronaut, sticker style" --output-dir "$PWD/generated-images"
+```
+
+Reference image examples:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\10296\.codex\skills\codex-image-generation\scripts\generate_codex_image.ps1" -Prompt "Edit this character into a polished anime portrait while preserving the pose and color palette." -ReferenceImage "D:\coding\subagent\image2\reference.png" -Action auto -Quality high -OutputDir "D:\coding\subagent\image2\generated-images"
+```
+
+```bash
+node "$HOME/.codex/skills/codex-image-generation/scripts/generate_codex_image.mjs" --prompt "Edit this character into a polished anime portrait while preserving the pose and color palette." --reference-image "$PWD/reference.png" --action auto --quality high --output-dir "$PWD/generated-images"
 ```
 
 ## Important Details
@@ -56,24 +94,27 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\10296\.codex\s
 - `gpt-image-2` belongs inside the `image_generation` tool, not the top-level `model`.
 - The top-level Responses model revises and routes the request; the image itself is generated by the image tool model.
 - `-Action auto` is the recommended default. Use `-Action generate` only for text-only generation, and `-Action edit` when you require reference-image editing.
+- Use Codex CLI `0.125.0`. Newer releases may retain internal Responses support while no longer exposing a usable `codex responses` entry for this workflow.
+- On macOS/Linux, the Node.js entry uses the same payload shape as the PowerShell entry and avoids depending on `cmd.exe`.
 - `codex responses` expects valid JSON on stdin and requires `"stream": true`.
 - On Windows, avoid piping text from PowerShell directly into `codex responses`; use the script's `cmd.exe /c "type payload.json | codex responses"` approach.
+- On macOS/Linux, prefer the bundled Node.js entry instead of manually shell-piping JSON. It sets a fallback `TERM` when the shell environment is non-interactive.
 - Write payload JSON as UTF-8 without BOM. A BOM or empty stdin can cause `failed to parse Responses API JSON payload: expected value at line 1 column 1`.
 - In Codex sandboxes, running `codex responses` may fail with `Access is denied`; rerun the same command with escalated permissions when needed.
 - Do not print or expose auth tokens. The Codex CLI handles authentication from the user's local Codex config.
 
 ## Script Parameters
 
-`scripts/generate_codex_image.ps1` supports:
+Both script entries support the same semantics. Use PowerShell-style flags on Windows and GNU-style flags on macOS/Linux:
 
-- `-Prompt`: image prompt. If omitted, the script prompts interactively.
-- `-OutputDir`: output folder. Defaults to `generated-images` under the current working directory.
-- `-Model`: top-level Responses model, default `gpt-5.5`.
-- `-ImageModel`: image tool model, default `gpt-image-2`.
-- `-Size`: default `1024x1024`.
-- `-Quality`: `auto`, `low`, `medium`, or `high`; default `auto`.
-- `-Format`: `png`, `jpeg`, or `webp`; default `png`.
-- `-Action`: `auto`, `generate`, or `edit`; default `auto`.
-- `-ReferenceImage`: optional local path, HTTP(S) URL, base64 data URL, or OpenAI `file-*` ID. Can be passed multiple times.
-- `-DebugArtifacts`: keep payload and response JSONL files after a successful run.
-- `-DryRun`: save the payload without calling `codex responses`.
+- Prompt: `-Prompt` or `--prompt`
+- Output directory: `-OutputDir` or `--output-dir`
+- Top-level model: `-Model` or `--model`
+- Image tool model: `-ImageModel` or `--image-model`
+- Size: `-Size` or `--size`
+- Quality: `-Quality` or `--quality`
+- Format: `-Format` or `--format`
+- Action: `-Action` or `--action`
+- Reference images: `-ReferenceImage` or `--reference-image`
+- Keep debug artifacts: `-DebugArtifacts` or `--debug-artifacts`
+- Dry run: `-DryRun` or `--dry-run`
