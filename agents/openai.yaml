@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Image Generation"
+  short_description: "Generate gpt-image-2 images through Codex auth"
+  default_prompt: "Use $codex-image-generation to generate an image from my prompt and save the PNG file."
